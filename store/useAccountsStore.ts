@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Account, AccountType, Currency } from '../types/account';
+import { Account, AccountType, CardType, Currency } from '../types/account';
 
 type AccountsState = {
   accounts: Account[];
@@ -23,8 +23,10 @@ export const useAccountsStore = create<AccountsState>()(
           name: 'Основная карта',
           balance: 0,
           type: 'card',
+          cardType: 'normal',
           currency: 'RUB',
           createdAt: new Date(),
+          includeInTotal: true,
         },
         {
           id: 'initial-cash',
@@ -33,6 +35,7 @@ export const useAccountsStore = create<AccountsState>()(
           type: 'cash',
           currency: 'RUB',
           createdAt: new Date(),
+          includeInTotal: true,
         },
       ],
       sortBy: 'name',
@@ -72,7 +75,6 @@ export const useAccountsStore = create<AccountsState>()(
   )
 );
 
-// Helper functions
 export const sortAccounts = (accounts: Account[], sortBy: AccountsState['sortBy']) => {
   return [...accounts].sort((a, b) => {
     if (sortBy === 'name') return a.name.localeCompare(b.name);

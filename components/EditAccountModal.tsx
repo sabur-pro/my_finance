@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, TextInput, StyleSheet, Alert } from 'react-native';
+import { Modal, View, TextInput, StyleSheet, Alert, Switch, Text } from 'react-native';
 import { Button } from 'react-native-paper';
 import { CurrencyPicker } from './CurrencyPicker';
-import { Account, Currency } from '../types/account';
+import { IconPicker } from './IconPicker';
+import { Account, CardType, Currency } from '../types/account';
+import { ScrollView } from 'react-native';
 
 type Props = {
   visible: boolean;
   account: Account | null;
   onClose: () => void;
-  onSave: (data: { name: string; currency: Currency }) => void;
+  onSave: (data: Partial<Account>) => void;
   onDelete?: () => void;
 };
 
@@ -19,13 +21,23 @@ export const EditAccountModal = ({
   onSave,
   onDelete 
 }: Props) => {
-  const [name, setName] = useState(account?.name || '');
-  const [currency, setCurrency] = useState<Currency>(account?.currency || 'RUB');
+  const [name, setName] = useState('');
+  const [currency, setCurrency] = useState<Currency>('RUB');
+  const [cardType, setCardType] = useState<CardType>('normal');
+  const [icon, setIcon] = useState('');
+  const [description, setDescription] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [includeInTotal, setIncludeInTotal] = useState(true);
 
   useEffect(() => {
     if (account) {
       setName(account.name);
       setCurrency(account.currency);
+      setCardType(account.cardType || 'normal');
+      setIcon(account.icon || '');
+      setDescription(account.description || '');
+      setCreditLimit(account.creditLimit?.toString() || '');
+      setIncludeInTotal(account.includeInTotal);
     }
   }, [account]);
 
@@ -34,19 +46,22 @@ export const EditAccountModal = ({
       Alert.alert('Ошибка', 'Название счета не может быть пустым');
       return;
     }
-    onSave({ name: name.trim(), currency });
+    
+    const updatedData: Partial<Account> = {
+      name: name.trim(),
+      currency,
+      includeInTotal,
+    };
+    
+    if (account?.type === 'card') {
+      updatedData.cardType = cardType;
+      updatedData.icon = icon;
+      updatedData.description = description;
+      updatedData.creditLimit = creditLimit ? Number(creditLimit) : undefined;
+    }
+    
+    onSave(updatedData);
     onClose();
-  };
-
-  const confirmDelete = () => {
-    Alert.alert(
-      'Удаление счета',
-      'Вы уверены, что хотите удалить этот счет?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Удалить', onPress: onDelete, style: 'destructive' },
-      ]
-    );
   };
 
   return (
@@ -55,53 +70,89 @@ export const EditAccountModal = ({
       animationType="slide"
       onRequestClose={onClose}
     >
+    <ScrollView contentContainerStyle={styles.container}>
+
       <View style={styles.container}>
         <TextInput
+          placeholder="Название счета"
           value={name}
           onChangeText={setName}
-          placeholder="Название счета"
-          placeholderTextColor="#888"
           style={styles.input}
-          maxLength={32}
         />
         
-        <CurrencyPicker
-          selected={currency}
-          onChange={setCurrency}
-        />
-
-        <Button 
-          mode="contained" 
-          onPress={handleSave}
-          style={styles.button}
-          labelStyle={styles.buttonLabel}
-        >
+        <CurrencyPicker selected={currency} onChange={setCurrency} />
+        
+        {account?.type === 'card' && (
+          <>
+            <Text style={styles.label}>Тип карты:</Text>
+            <View style={styles.buttonGroup}>
+              {(['normal', 'savings', 'debt'] as CardType[]).map((type) => (
+                <Button
+                  key={type}
+                  mode={cardType === type ? 'contained' : 'outlined'}
+                  onPress={() => setCardType(type)}
+                  style={styles.typeButton}
+                >
+                  {type === 'normal' ? 'Обычная' : type === 'savings' ? 'Сбережения' : 'Долг'}
+                </Button>
+              ))}
+            </View>
+            
+            <Text style={styles.label}>Иконка:</Text>
+            <IconPicker selectedIcon={icon} onSelect={setIcon} />
+            
+            <TextInput
+              placeholder="Описание"
+              value={description}
+              onChangeText={setDescription}
+              style={styles.input}
+              multiline
+            />
+            
+            <TextInput
+              placeholder="Кредитный лимит"
+              value={creditLimit}
+              onChangeText={setCreditLimit}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+          </>
+        )}
+        
+        <View style={styles.switchRow}>
+          <Text>Учитывать в общем счёте:</Text>
+          <Switch
+            value={includeInTotal}
+            onValueChange={setIncludeInTotal}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={includeInTotal ? '#4A90E2' : '#f4f3f4'}
+          />
+        </View>
+        
+        <Button mode="contained" onPress={handleSave} style={styles.button}>
           Сохранить
         </Button>
-
+        
         {onDelete && (
           <Button 
             mode="outlined" 
-            onPress={confirmDelete}
+            onPress={onDelete}
             style={[styles.button, styles.deleteButton]}
-            labelStyle={[styles.buttonLabel, styles.deleteLabel]}
+            labelStyle={styles.deleteLabel}
           >
             Удалить счет
           </Button>
         )}
-
-        <Button 
-          mode="text" 
-          onPress={onClose}
-          style={styles.cancelButton}
-          labelStyle={styles.cancelLabel}
-        >
+        
+        <Button mode="text" onPress={onClose} style={styles.button}>
           Отмена
         </Button>
       </View>
+      </ScrollView>
     </Modal>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -139,5 +190,24 @@ const styles = StyleSheet.create({
   },
   cancelLabel: {
     color: '#666',
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#333',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  typeButton: {
+    flex: 1,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
   },
 });

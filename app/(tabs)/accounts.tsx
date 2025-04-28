@@ -3,7 +3,9 @@ import { Button } from 'react-native-paper';
 import { AccountCard } from '../../components/AccountCard';
 import { useAccountsStore, sortAccounts, filterAccounts } from '../../store/useAccountsStore';
 import { MaterialIcons } from '@expo/vector-icons';
-import { AccountType } from '../../types/account';
+import { AccountType, Currency, CardType } from '../../types/account';
+import { useState } from 'react';
+import { CreateCardModal } from '../../components/CreateCardModal';
 
 export default function AccountsScreen() {
   const { 
@@ -15,17 +17,26 @@ export default function AccountsScreen() {
     setFilter
   } = useAccountsStore();
 
+  const [createCardVisible, setCreateCardVisible] = useState(false);
+
   const processedAccounts = sortAccounts(
     filterAccounts(accounts, filterType),
     sortBy
   );
 
-  const handleAddCustomAccount = () => {
+  const handleCreateCard = (data: {
+    name: string;
+    currency: Currency;
+    cardType: CardType;
+    icon?: string;
+    description?: string;
+    creditLimit?: number;
+    includeInTotal: boolean;
+  }) => {
     addAccount({
-      name: 'Новый счет',
+      ...data,
       balance: 0,
-      type: 'custom',
-      currency: 'RUB',
+      type: 'card',
     });
   };
 
@@ -33,7 +44,7 @@ export default function AccountsScreen() {
     <View style={styles.container}>
       <View style={styles.controlsContainer}>
         <View style={styles.filterRow}>
-          {['all', 'card', 'cash', 'custom'].map((type) => (
+          {['all', 'card', 'cash'].map((type) => (
             <Button
               key={type}
               mode={filterType === type ? 'contained' : 'outlined'}
@@ -41,8 +52,7 @@ export default function AccountsScreen() {
               style={styles.filterButton}
               labelStyle={styles.filterLabel}
             >
-              {type === 'all' ? 'Все' : type === 'card' ? 'Карты' : 
-               type === 'cash' ? 'Наличные' : 'Другие'}
+              {type === 'all' ? 'Все' : type === 'card' ? 'Карты' : 'Наличные'}
             </Button>
           ))}
         </View>
@@ -77,13 +87,19 @@ export default function AccountsScreen() {
       
       <Button 
         mode="contained" 
-        onPress={handleAddCustomAccount}
+        onPress={() => setCreateCardVisible(true)}
         style={styles.addButton}
         labelStyle={styles.addButtonLabel}
-        icon="plus"
+        icon="credit-card-plus"
       >
-        Добавить счет
+        Добавить карту
       </Button>
+
+      <CreateCardModal
+        visible={createCardVisible}
+        onClose={() => setCreateCardVisible(false)}
+        onSave={handleCreateCard}
+      />
     </View>
   );
 }
@@ -127,6 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 'auto',
     paddingVertical: 10,
+    backgroundColor: '#4A90E2',
   },
   addButtonLabel: {
     fontSize: 16,
